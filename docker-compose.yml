@@ -1,0 +1,74 @@
+services:
+  db-staging:
+    image: postgres:16
+    container_name: coach-db-staging
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    networks:
+      - internal
+
+  directus-staging:
+    image: directus/directus:11
+    container_name: coach-directus-staging
+    restart: unless-stopped
+    depends_on:
+      - db-staging
+    environment:
+      KEY: ${DIRECTUS_KEY}
+      SECRET: ${DIRECTUS_SECRET}
+      ADMIN_EMAIL: ${ADMIN_EMAIL}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+      DB_CLIENT: pg
+      DB_HOST: db-staging
+      DB_PORT: "5432"
+      DB_DATABASE: ${POSTGRES_DB}
+      DB_USER: ${POSTGRES_USER}
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+
+      # Recomendado para prod detrás de proxy
+      PUBLIC_URL: ${PUBLIC_URL}
+      CORS_ENABLED: "true"
+      CORS_ORIGIN: ${CORS_ORIGIN}
+      ASSETS_CONTENT_SECURITY_POLICY_DIRECTIVES__DEFAULT_SRC: "array:'self'"
+      ASSETS_CONTENT_SECURITY_POLICY_DIRECTIVES__MEDIA_SRC: "array:'self'"
+
+    volumes:
+      - ./uploads:/directus/uploads
+      - ./extensions:/directus/extensions
+
+    networks:
+      - internal
+      - web
+  
+        #    labels:
+        #- traefik.enable=true
+        #- traefik.docker.network=web
+        #- traefik.http.routers.directus-staging.rule=Host(`${DIRECTUS_HOST}`)
+        #- traefik.http.routers.directus-staging.entrypoints=websecure
+        #- traefik.http.routers.directus-staging.tls.certresolver=le
+        #- traefik.http.services.directus-staging.loadbalancer.server.port=8055
+        #- traefik.http.routers.directus-staging.service=directus-staging-svc
+        #
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=web
+      - traefik.http.routers.directus-staging.rule=Host(`${DIRECTUS_HOST}`)
+      - traefik.http.routers.directus-staging.entrypoints=websecure
+      - traefik.http.routers.directus-staging.tls=true
+      - traefik.http.routers.directus-staging.tls.certresolver=le
+      - traefik.http.routers.directus-staging.service=directus-staging-svc
+      - traefik.http.services.directus-staging-svc.loadbalancer.server.port=8055
+
+volumes:
+  db_data:
+
+networks:
+  internal:
+    driver: bridge
+  web:
+    external: true
